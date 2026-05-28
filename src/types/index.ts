@@ -31,6 +31,7 @@ export interface Course {
 }
 
 export interface ScheduleEntry {
+  id: string
   classId: string
   courseId: string
   teacherId: string
@@ -43,6 +44,6 @@ export interface ScheduleEntry {
 
 export type ViewMode = 'class' | 'teacher' | 'room'
 
-export const DAYS = ['周一', '周二', '周三', '周四', '周五'] as const
+export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const
 export const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8] as const
 export const PERIOD_LABELS = ['8:15-9:00', '9:10-9:55', '10:05-10:50', '11:00-11:45', '13:15-14:00', '14:10-14:55', '15:25-16:10', '16:20-17:05'] as const

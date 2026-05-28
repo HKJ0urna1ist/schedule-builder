@@ -1,6 +1,45 @@
-import { useStore } from '../store'
+import { useState, useMemo, useCallback } from 'react'
+import { useStore, genId } from '../store'
 import { generateSchedule, findConflicts } from '../algorithm/scheduler'
 import { DAYS, PERIODS } from '../types'
+
+function CellModal({ classId, day, period, onCancel }: { classId: string; day: number; period: number; onCancel: () => void }) {
+  const { courses, teachers, rooms, addManualEntry } = useStore()
+  const [cId, setCId] = useState('')
+  const [tId, setTId] = useState('')
+  const [rId, setRId] = useState('')
+  const [gl, setGl] = useState('')
+  const save = () => {
+    if (!cId || !tId || !rId) return
+    addManualEntry({ id: genId(), classId, courseId: cId, teacherId: tId, roomId: rId, groupLabel: gl.trim() || '-', dayOfWeek: day, periodIndex: period, locked: true })
+    onCancel()
+  }
+  const cc = courses.filter(c => c.classId === classId)
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={e => { if (e.target === e.currentTarget) onCancel() }}>
+      <div className="bg-white rounded shadow-lg p-4 w-80" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold mb-2">Add Course</h3>
+        <select className="border rounded px-2 py-1 w-full mb-2" value={cId} onChange={e => setCId(e.target.value)}>
+          <option value="">Course</option>
+          {cc.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select className="border rounded px-2 py-1 w-full mb-2" value={tId} onChange={e => setTId(e.target.value)}>
+          <option value="">Teacher</option>
+          {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <select className="border rounded px-2 py-1 w-full mb-2" value={rId} onChange={e => setRId(e.target.value)}>
+          <option value="">Room</option>
+          {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+        <input className="border rounded px-2 py-1 w-full mb-2" placeholder="Group label" value={gl} onChange={e => setGl(e.target.value)} />
+        <div className="flex gap-2">
+          <button className="bg-blue-500 text-white px-4 py-1 rounded flex-1" onClick={save}>Add</button>
+          <button className="bg-gray-300 px-4 py-1 rounded flex-1" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ScheduleView() {
   const classes = useStore(s => s.classes)
@@ -15,126 +54,176 @@ export function ScheduleView() {
   const setViewMode = useStore(s => s.setViewMode)
   const setViewTargetId = useStore(s => s.setViewTargetId)
   const toggleLock = useStore(s => s.toggleLock)
+  const moveEntry = useStore(s => s.moveEntry)
+  const removeEntry = useStore(s => s.removeEntry)
+  const [cellEdit, setCellEdit] = useState<{ classId: string; day: number; period: number } | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
 
-  const getCourseName = (id: string) => courses.find(c => c.id === id)?.name ?? '-'
-  const getTeacherName = (id: string) => teachers.find(t => t.id === id)?.name ?? '-'
-  const getRoomName = (id: string) => rooms.find(r => r.id === id)?.name ?? '-'
+  const getCourseName = useMemo(() => (id: string) => courses.find(c => c.id === id)?.name ?? '-', [courses])
+  const getTeacherName = useMemo(() => (id: string) => teachers.find(t => t.id === id)?.name ?? '-', [teachers])
+  const getRoomName = useMemo(() => (id: string) => rooms.find(r => r.id === id)?.name ?? '-', [rooms])
+  const getClassName = useMemo(() => (id: string) => classes.find(c => c.id === id)?.name ?? '-', [classes])
 
-  const handleGenerate = () => {
-    const result = generateSchedule(
-      { classes, teachers, rooms, courses },
-      schedule.filter(e => e.locked)
-    )
-    setSchedule(result)
-  }
+  const handleGenerate = useCallback(() => {
+    setSchedule(generateSchedule({ classes, teachers, rooms, courses }, schedule.filter(e => e.locked)))
+  }, [classes, teachers, rooms, courses, schedule, setSchedule])
 
-  const conflicts = schedule.length > 0 ? findConflicts(schedule) : null
-  const totalConflicts = conflicts
-    ? conflicts.teacherConflicts.length + conflicts.roomConflicts.length + conflicts.classConflicts.length
-    : 0
+  const conflicts = useMemo(() => schedule.length ? findConflicts(schedule) : null, [schedule])
+  const totalConflicts = conflicts ? conflicts.teacherConflicts.length + conflicts.roomConflicts.length + conflicts.classConflicts.length : 0
+  const targetClasses = viewTargetId ? classes.filter(c => c.id === viewTargetId) : classes
 
-  const targetClasses = viewTargetId
-    ? classes.filter(c => c.id === viewTargetId)
-    : classes
+  const handleDragStart = (e: React.DragEvent, id: string) => { setDragId(id); e.dataTransfer.effectAllowed = 'move' }
+  const handleDrop = (to: { classId: string; day: number; period: number }) => { if (dragId) { moveEntry(dragId, to); setDragId(null) } }
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault()
+
   return (
     <div className="p-4">
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <h2 className="text-xl font-bold">排课系 - 课表</h2>
-        <button className="bg-green-600 text-white px-4 py-1 rounded" onClick={handleGenerate}>
-          生成课表
-        </button>
-        {schedule.length > 0 && (
-          <button className="bg-gray-500 text-white px-4 py-1 rounded" onClick={() => clearSchedule()}>
-            清空课表
-          </button>
-        )}
-        {conflicts && totalConflicts > 0 && (
-          <span className="text-red-600 font-semibold text-sm">
-            冲窼: {totalConflicts} (教师{conflicts.teacherConflicts.length} 教宲{conflicts.roomConflicts.length} 班级{conflicts.classConflicts.length})
-          </span>
-        )}
-        {conflicts && totalConflicts === 0 && schedule.length > 0 && (
-          <span className="text-green-600 text-sm">无冲窼</span>
-        )}
+        <h2 className="text-xl font-bold">Timetable</h2>
+        <button className="bg-green-600 text-white px-4 py-1 rounded" onClick={handleGenerate}>Generate</button>
+        {schedule.length > 0 ? (<>
+          <button className="bg-gray-500 text-white px-4 py-1 rounded" onClick={() => clearSchedule()}>Clear</button>
+          {conflicts && totalConflicts > 0 ? <span className="text-red-600 font-semibold">Conflicts: {totalConflicts}</span> : <span className="text-green-600">No conflicts</span>}
+        </>) : <p className="text-gray-500">Add classes and courses in Manage, then click Generate.</p>}
       </div>
       <div className="flex gap-2 mb-4 flex-wrap items-center">
-        <span className="text-sm text-gray-600">查看：</span>
-        <select className="border rounded px-2 py-1 text-sm" value={viewMode} onChange={(e) => setViewMode(e.target.value as 'class' | 'teacher' | 'room')}>
-          <option value="class">按班级</option>
-          <option value="teacher">按教师</option>
-          <option value="room">按教宺</option>
+        <span className="text-sm text-gray-600">View:</span>
+        <select className="border rounded px-2 py-1 text-sm" value={viewMode} onChange={(e: any) => setViewMode(e.target.value)}>
+          <option value="class">By Class</option>
+          <option value="teacher">By Teacher</option>
+          <option value="room">By Room</option>
         </select>
-        {viewMode === 'class' && (
-          <select className="border rounded px-2 py-1 text-sm" value={viewTargetId ?? ''} onChange={(e) => setViewTargetId(e.target.value || null)}>
-            <option value="">全部班级</option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        )}
-        {viewMode === 'teacher' && (
-          <select className="border rounded px-2 py-1 text-sm" value={viewTargetId ?? ''} onChange={(e) => setViewTargetId(e.target.value || null)}>
-            <option value="">全部教师</option>
-            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        )}
-        {viewMode === 'room' && (
-          <select className="border rounded px-2 py-1 text-sm" value={viewTargetId ?? ''} onChange={(e) => setViewTargetId(e.target.value || null)}>
-            <option value="">全部教宺</option>
-            {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-        )}
+        {viewMode === 'class' && <select className="border rounded px-2 py-1 text-sm" value={viewTargetId ?? ''} onChange={(e: any) => setViewTargetId(e.target.value || null)}>
+          <option value="">All Classes</option>
+          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>}
+        {viewMode === 'teacher' && <select className="border rounded px-2 py-1 text-sm" value={viewTargetId ?? ''} onChange={(e: any) => setViewTargetId(e.target.value || null)}>
+          <option value="">All Teachers</option>
+          {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>}
+        {viewMode === 'room' && <select className="border rounded px-2 py-1 text-sm" value={viewTargetId ?? ''} onChange={(e: any) => setViewTargetId(e.target.value || null)}>
+          <option value="">All Rooms</option>
+          {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>}
       </div>
-      {classes.length === 0 ? (
-        <p className="text-gray-500 mt-8">请先在“管理”页面添加班级、教师、教室和课程。</p>
-      ) : (
-        <div className="space-y-8">
-          {targetClasses.map((cl) => (
-            <div key={cl.id} className="bg-white rounded shadow p-4">
-              <h3 className="font-bold text-lg mb-3">{cl.name}</h3>
-              <div className="overflow-x-auto">
-                <table className="border-collapse w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border p-2 w-16">节次</th>
-                      {DAYS.map((d, i) => <th key={i} className="border p-2 text-center">{d}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>                    {PERIODS.map((p) => (
-                      <tr key={p}>
-                        <td className="border p-2 text-center text-gray-500 text-xs">{p}</td>
-                        {DAYS.map((_, d) => {
-                          const entries = schedule.filter(e => e.classId === cl.id && e.dayOfWeek === d && e.periodIndex === p)
-                          return (
-                            <td key={d} className="border p-1 min-w-[130px] align-top">
-                              {entries.length === 0 ? (
-                                <div className="text-gray-300 text-xs text-center">-</div>
-                              ) : (
-                                <div className="space-y-1">
-                                  {entries.map((ent, i) => (
-                                    <div
-                                      key={i}
-                                      className={`rounded p-1 text-xs cursor-pointer ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50 hover:bg-blue-100'}`}
-                                      onClick={() => toggleLock(ent.classId, ent.dayOfWeek, ent.periodIndex, ent.groupLabel)}
-                                    >
-                                      <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                                      <div className="text-gray-600">
-                                        {ent.groupLabel} @{getRoomName(ent.roomId)}
-                                      </div>
-                                      <div className="text-gray-500">{getTeacherName(ent.teacherId)}</div>
-                                    </div>
-                                  ))}
+      {viewMode === 'class' && schedule.length > 0 && targetClasses.map((cl) => (
+        <div key={cl.id} className="bg-white rounded shadow p-4 mb-6">
+          <h3 className="font-bold text-lg mb-3">{cl.name}</h3>
+          <div className="overflow-x-auto">
+            <table className="border-collapse w-full text-sm">
+              <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2 text-center">{d}</th>)}</tr></thead>
+              <tbody>
+                {PERIODS.map((p) => (
+                  <tr key={p}>
+                    <td className="border p-2 text-center text-gray-400">{p}</td>
+                    {DAYS.map((_, dy) => {
+                      const entries = schedule.filter(e => e.classId === cl.id && e.dayOfWeek === dy && e.periodIndex === p)
+                      return (
+                        <td key={dy} className="border p-1 min-w-[150px] align-top">
+                          {entries.length === 0 ? (
+                            <div className="hover:bg-gray-100 cursor-pointer rounded text-center text-gray-300" onClick={() => setCellEdit({ classId: cl.id, day: dy, period: p })} onDragOver={handleDragOver} onDrop={() => handleDrop({ classId: cl.id, day: dy, period: p })}>+</div>
+                          ) : (
+                            <div className="space-y-1">
+                              {entries.map((ent) => (
+                                <div key={ent.id} className={`rounded p-1 text-xs cursor-grab active:cursor-grabbing ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50 hover:bg-blue-100'}`} draggable onDragStart={(e) => handleDragStart(e, ent.id)} onClick={(ev) => { if (ev.shiftKey) toggleLock(ent.id); if (ev.altKey && confirm('Remove?')) removeEntry(ent.id) }}>
+                                  <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                                  <div className="text-gray-600">{ent.groupLabel ? ent.groupLabel + ' @ ' : ''}{getRoomName(ent.roomId)}</div>
+                                  <div className="text-gray-500">{getTeacherName(ent.teacherId)}</div>
                                 </div>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
+      ))}
+      {viewMode === 'teacher' && schedule.length > 0 && (viewTargetId ? (
+        <div className="space-y-8">
+          {teachers.filter(t => t.id === viewTargetId).map((teach) => {
+            const es = schedule.filter(e => e.teacherId === teach.id)
+            if (!es.length) return null
+            return (
+              <div key={teach.id} className="bg-white rounded shadow p-4 mb-6">
+                <h3 className="font-bold text-lg mb-3">{teach.name}</h3>
+                <div className="overflow-x-auto">
+                  <table className="border-collapse w-full text-sm">
+                    <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
+                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                      {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
+                      return <td key={dy} className="border p-1 min-w-[140px] align-top">
+                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
+                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'}`}>
+                            <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                            <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
+                          </div>))}
+                      </td>})}
+                    </tr>))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {teachers.map((teach) => {
+            const es = schedule.filter(e => e.teacherId === teach.id)
+            if (!es.length) return null
+            return (
+              <div key={teach.id} className="bg-white rounded shadow p-4 mb-6">
+                <h3 className="font-bold text-lg mb-3">{teach.name}</h3>
+                <div className="overflow-x-auto">
+                  <table className="border-collapse w-full text-sm">
+                    <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
+                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                      {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
+                      return <td key={dy} className="border p-1 min-w-[140px] align-top">
+                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
+                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'}`}>
+                            <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                            <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
+                          </div>))}
+                      </td>})}
+                    </tr>))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+      ) : (
+        <div className="space-y-6">
+          {rooms.map((rm) => {
+            const es = schedule.filter(e => e.roomId === rm.id)
+            if (!es.length) return null
+            return (
+              <div key={rm.id} className="bg-white rounded shadow p-4 mb-6">
+                <h3 className="font-bold text-lg mb-3">{rm.name}</h3>
+                <div className="overflow-x-auto">
+                  <table className="border-collapse w-full text-sm">
+                    <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
+                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                      {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
+                      return <td key={dy} className="border p-1 min-w-[140px] align-top">
+                        {es2.length === 0 ? <div>-</div> : es2.map((ent) => (
+                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100' : 'bg-blue-50'}`}>
+                            <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                            <div className="text-gray-600">{getClassName(ent.classId)} | {getTeacherName(ent.teacherId)}</div>
+                          </div>))}
+                      </td>})}
+                    </tr>))}</tbody>
+                  </table></div></div>
+            )})}
+        </div>
+      {classes.length === 0 && <p className="text-gray-500 mt-8">Add classes, teachers, rooms in Manage first.</p>}
+      {cellEdit && <CellModal classId={cellEdit.classId} day={cellEdit.day} period={cellEdit.period} onCancel={() => setCellEdit(null)} />}
     </div>
   )
 }

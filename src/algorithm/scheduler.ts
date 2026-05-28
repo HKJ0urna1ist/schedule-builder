@@ -61,27 +61,21 @@ function getAvailableSlots(
   })
 }
 
+let eid = Math.random()
+
 export function generateSchedule(input: Input, locked: ScheduleEntry[] = []): ScheduleEntry[] {
   const { courses } = input
   const schedule: ScheduleEntry[] = [...locked]
-
 
   const courseItems = courses.map((course) => {
     const alreadyPlaced = schedule.filter(
       (e) => e.classId === course.classId && e.courseId === course.id
     ).length
     const groupPlaced = alreadyPlaced / Math.max(1, course.groups.length)
-    return {
-      course,
-      remaining: Math.max(0, course.lessonsPerWeek - groupPlaced),
-    }
+    return { course, remaining: Math.max(0, course.lessonsPerWeek - groupPlaced) }
   })
 
-  const sortedItems = [...courseItems].sort((a, b) => {
-    if (a.course.type === '必修' && b.course.type !== '必修') return -1
-    if (a.course.type !== '必修' && b.course.type === '必修') return 1
-    return b.remaining - a.remaining
-  })
+  const sortedItems = [...courseItems].sort((a, b) => b.remaining - a.remaining)
 
   for (const item of sortedItems) {
     if (item.remaining <= 0) continue
@@ -95,6 +89,7 @@ export function generateSchedule(input: Input, locked: ScheduleEntry[] = []): Sc
       if (placed >= item.remaining) break
       for (const group of item.course.groups) {
         schedule.push({
+          id: `${Date.now()}_${eid++}`,
           classId: item.course.classId,
           courseId: item.course.id,
           teacherId: group.teacherId,
@@ -130,6 +125,5 @@ export function findConflicts(schedule: ScheduleEntry[]): {
       if (a.classId === b.classId && a.courseId !== b.courseId) classConflicts.push([a, b])
     }
   }
-
   return { teacherConflicts, roomConflicts, classConflicts }
 }

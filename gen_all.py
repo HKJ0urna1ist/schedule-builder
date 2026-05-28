@@ -1,4 +1,11 @@
-import { create } from 'zustand'
+import base64, os
+
+SRC = "/Users/yxq/Downloads/opencode project1/schedule/src"
+
+# ============================================================
+# store/index.ts
+# ============================================================
+store_ts = """import { create } from 'zustand'
 import type { ClassInfo, Teacher, Room, Course, ScheduleEntry, ViewMode } from '../types'
 
 let uid = 1
@@ -98,4 +105,8 @@ export const useStore = create<AppState>((set, get) => {
   }
 })
 
-export { genId }
+export { genId }"""
+
+with open(os.path.join(SRC, "store", "index.ts"), "w") as f:
+    f.write(store_ts)
+print("store/index.ts OK " + str(len(store_ts)))

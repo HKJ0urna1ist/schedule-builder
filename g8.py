@@ -1,0 +1,5 @@
+import base64,os
+OUT="/Users/yxq/Downloads/opencode project1/schedule/src/components/ScheduleView.tsx"
+b8="CiAgICAgIHtjbGFzc2VzLmxlbmd0aD09PTAmJjxwIGNsYXNzTmFtZT0idGV4dC1ncmF5LTUwMCBtdC04Ij5BZGQgY2xhc3NlcywgdGVhY2hlcnMsIHJvb21zLCBhbmQgY291cnNlcyBpbiBNYW5hZ2UgZmlyc3QuPC9wPn0KICAgICAge2NlbGxFZGl0ICYmIDxDZWxsTW9kYWwgY2xhc3NJZD17Y2VsbEVkaXQuY2xhc3NJZH0gZGF5PXtjZWxsRWRpdC5kYXl9IHBlcmlvZD17Y2VsbEVkaXQucGVyaW9kfSBvbkNhbmNlbD17KCk9PnNldENlbGxFZGl0KG51bGwpfSAvPn0KICAgIDwvZGl2PgogICkKfQo="
+with open(OUT,"a")as f:f.write(base64.b64decode(b8).decode())
+print("b8 done")
