@@ -12,7 +12,7 @@ function App() {
   return (
     <div className="min-h-screen bg-white">
       <nav className="bg-gray-800 text-white px-4 py-2 flex items-center gap-4 sticky top-0 z-50">
-        <span className="font-bold text-lg">排课系-'经</span>
+        <span className="font-bold text-lg">排课系统 - 走班制课表管理</span>
         <div className="flex gap-1">
           <button
             className={`px-3 py-1 rounded text-sm ${currentPage === 'schedule' ? 'bg-blue-600' : 'hover:bg-gray-700'}`}

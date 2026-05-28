@@ -39,7 +39,7 @@ export function TeacherManager() {
             <tr key={t.id}>
               <td className="border p-2">{t.name}</td>
               <td className="border p-2">
-                {courses.filter((c) => c.teacherId === t.id).map((c) => c.name).join(', ') || '-'}
+                {courses.filter((c) => c.groups.some((g) => g.teacherId === t.id)).map((c) => c.name).join(', ') || '-'}
               </td>
               <td className="border p-2 space-x-1">
                 <button className="text-blue-500 text-sm" onClick={() => { setEditId(t.id); setName(t.name) }}>编辑</button>

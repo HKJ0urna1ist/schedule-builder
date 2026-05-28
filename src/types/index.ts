@@ -1,8 +1,6 @@
 export interface ClassInfo {
   id: string
   name: string
-  roomId: string
-  courseIds: string[]
 }
 
 export interface Teacher {
@@ -13,8 +11,12 @@ export interface Teacher {
 export interface Room {
   id: string
   name: string
-  type: '普通' | '实验室' | '操场' | '其他'
-  capacity: number
+}
+
+export interface CourseGroup {
+  label: string
+  teacherId: string
+  roomId: string
 }
 
 export type CourseType = '必修' | '走班'
@@ -23,17 +25,9 @@ export interface Course {
   id: string
   name: string
   type: CourseType
-  teacherId: string
-  classIds: string[]
-  lessonsPerWeek: number
-}
-
-export interface FixedSchedule {
   classId: string
-  courseId: string | null
-  dayOfWeek: number
-  periodIndex: number
-  label?: string
+  lessonsPerWeek: number
+  groups: CourseGroup[]
 }
 
 export interface ScheduleEntry {
@@ -41,6 +35,7 @@ export interface ScheduleEntry {
   courseId: string
   teacherId: string
   roomId: string
+  groupLabel: string
   dayOfWeek: number
   periodIndex: number
   locked: boolean
@@ -50,3 +45,4 @@ export type ViewMode = 'class' | 'teacher' | 'room'
 
 export const DAYS = ['周一', '周二', '周三', '周四', '周五'] as const
 export const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8] as const
+export const PERIOD_LABELS = ['8:15-9:00', '9:10-9:55', '10:05-10:50', '11:00-11:45', '13:15-14:00', '14:10-14:55', '15:25-16:10', '16:20-17:05'] as const
