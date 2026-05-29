@@ -33,6 +33,59 @@ export interface Course {
   groups: CourseGroup[]
 }
 
+export interface TimeProfile {
+  id: string
+  name: string
+  // Period index -> time range
+  periods: { periodIndex: number; start: string; end: string }[]
+}
+
+export interface ExamSession {
+  id: string
+  examName: string
+  // Hybrid subject: can be free text, optionally linked to a course
+  subjectText: string
+  courseId?: string
+  date: string // YYYY-MM-DD
+  startTime: string // HH:mm
+  endTime: string // HH:mm
+  candidateCount?: number
+}
+
+export interface ExamRoomAssignment {
+  id: string
+  sessionId: string
+  roomId: string
+  classIds: string[]
+  invigilatorTeacherIds: string[]
+  assignedCandidateCount?: number
+  notes?: string
+}
+
+export interface TimetableOverride {
+  id: string
+  name: string
+  startDate: string // YYYY-MM-DD
+  endDate: string // YYYY-MM-DD
+  schedule: ScheduleEntry[]
+}
+
+export interface CycleProfile {
+  id: string
+  name: string
+  createdAt: number
+  updatedAt: number
+  timeProfileId: string
+  classes: ClassInfo[]
+  teachers: Teacher[]
+  rooms: Room[]
+  courses: Course[]
+  schedule: ScheduleEntry[]
+  overrides: TimetableOverride[]
+  examSessions: ExamSession[]
+  examAssignments: ExamRoomAssignment[]
+}
+
 export interface ScheduleEntry {
   id: string
   classId: string
