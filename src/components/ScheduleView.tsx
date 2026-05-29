@@ -70,10 +70,26 @@ export function ScheduleView() {
 
   const conflicts = useMemo(() => schedule.length ? findConflicts(schedule) : null, [schedule])
   const totalConflicts = conflicts ? conflicts.teacherConflicts.length + conflicts.roomConflicts.length + conflicts.classConflicts.length : 0
+
+  const conflictEntryIds = useMemo(() => {
+    if (!conflicts) return new Set<string>()
+    const ids = new Set<string>()
+    for (const [a, b] of conflicts.teacherConflicts) { ids.add(a.id); ids.add(b.id) }
+    for (const [a, b] of conflicts.roomConflicts) { ids.add(a.id); ids.add(b.id) }
+    for (const [a, b] of conflicts.classConflicts) { ids.add(a.id); ids.add(b.id) }
+    return ids
+  }, [conflicts])
   const targetClasses = viewTargetId ? classes.filter(c => c.id === viewTargetId) : classes
 
   const handleDragStart = (e: React.DragEvent, id: string) => { setDragId(id); e.dataTransfer.effectAllowed = 'move' }
-  const handleDrop = (to: { classId: string; day: number; period: number }) => { if (dragId) { moveEntry(dragId, to); setDragId(null) } }
+  const handleDrop = (to: { classId: string; day: number; period: number }) => {
+    if (!dragId) return
+    const ent = schedule.find(e => e.id === dragId)
+    // Locked items are meant to stay fixed (and generation already preserves them).
+    if (ent?.locked) { setDragId(null); return }
+    moveEntry(dragId, to)
+    setDragId(null)
+  }
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
 
   return (
@@ -118,19 +134,42 @@ export function ScheduleView() {
                     <td className="border p-2 text-center text-gray-400">{p}</td>
                     {DAYS.map((_, dy) => {
                       const entries = schedule.filter(e => e.classId === cl.id && e.dayOfWeek === dy && e.periodIndex === p)
+                      const cellHasConflict = entries.some(e => conflictEntryIds.has(e.id))
                       return (
-                        <td key={dy} className="border p-1 min-w-[150px] align-top">
+                        <td
+                          key={dy}
+                          className={`border p-1 min-w-[150px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}
+                          onDragOver={handleDragOver}
+                          onDrop={() => handleDrop({ classId: cl.id, day: dy, period: p })}
+                        >
                           {entries.length === 0 ? (
-                            <div className="hover:bg-gray-100 cursor-pointer rounded text-center text-gray-300" onClick={() => setCellEdit({ classId: cl.id, day: dy, period: p })} onDragOver={handleDragOver} onDrop={() => handleDrop({ classId: cl.id, day: dy, period: p })}>+</div>
+                            <div className="hover:bg-gray-100 cursor-pointer rounded text-center text-gray-300" onClick={() => setCellEdit({ classId: cl.id, day: dy, period: p })}>+</div>
                           ) : (
-                            <div className="space-y-1">
+                            <div className="flex gap-1 items-stretch">
                               {entries.map((ent) => (
-                                <div key={ent.id} className={`rounded p-1 text-xs cursor-grab active:cursor-grabbing ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50 hover:bg-blue-100'}`} draggable onDragStart={(e) => handleDragStart(e, ent.id)} onClick={(ev) => { if (ev.shiftKey) toggleLock(ent.id); if (ev.altKey && confirm('Remove?')) removeEntry(ent.id) }}>
+                                <div
+                                  key={ent.id}
+                                  className={`rounded p-1 text-xs cursor-grab active:cursor-grabbing flex-1 min-w-0 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50 hover:bg-blue-100'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}
+                                  draggable={!ent.locked}
+                                  onDragStart={(e) => handleDragStart(e, ent.id)}
+                                  onClick={(ev) => {
+                                    if (ev.shiftKey) toggleLock(ent.id)
+                                    if (ev.altKey && confirm('Remove?')) removeEntry(ent.id)
+                                  }}
+                                  title={conflictEntryIds.has(ent.id) ? 'Conflict detected' : undefined}
+                                >
                                   <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                                  <div className="text-gray-600">{ent.groupLabel ? ent.groupLabel + ' @ ' : ''}{getRoomName(ent.roomId)}</div>
+                                  <div className="text-gray-600 truncate">{ent.groupLabel ? ent.groupLabel + ' @ ' : ''}{getRoomName(ent.roomId)}</div>
                                   <div className="text-gray-500">{getTeacherName(ent.teacherId)}</div>
                                 </div>
                               ))}
+                              <button
+                                className="px-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                                onClick={() => setCellEdit({ classId: cl.id, day: dy, period: p })}
+                                title="Add parallel course"
+                              >
+                                +
+                              </button>
                             </div>
                           )}
                         </td>
@@ -143,62 +182,67 @@ export function ScheduleView() {
           </div>
         </div>
       ))}
-      {viewMode === 'teacher' && schedule.length > 0 && (viewTargetId ? (
-        <div className="space-y-8">
-          {teachers.filter(t => t.id === viewTargetId).map((teach) => {
-            const es = schedule.filter(e => e.teacherId === teach.id)
-            if (!es.length) return null
-            return (
-              <div key={teach.id} className="bg-white rounded shadow p-4 mb-6">
-                <h3 className="font-bold text-lg mb-3">{teach.name}</h3>
-                <div className="overflow-x-auto">
-                  <table className="border-collapse w-full text-sm">
-                    <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
-                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
-                      {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
-                      return <td key={dy} className="border p-1 min-w-[140px] align-top">
-                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
-                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'}`}>
-                            <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                            <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
-                          </div>))}
-                      </td>})}
-                    </tr>))}</tbody>
-                  </table>
+      {viewMode === 'teacher' && schedule.length > 0 && (
+        viewTargetId ? (
+          <div className="space-y-8">
+            {teachers.filter(t => t.id === viewTargetId).map((teach) => {
+              const es = schedule.filter(e => e.teacherId === teach.id)
+              if (!es.length) return null
+              return (
+                <div key={teach.id} className="bg-white rounded shadow p-4 mb-6">
+                  <h3 className="font-bold text-lg mb-3">{teach.name}</h3>
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse w-full text-sm">
+                      <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
+                      <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                        {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
+                        const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
+                        return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
+                          {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
+                            <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
+                              <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                              <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
+                            </div>))}
+                        </td>})}
+                      </tr>))}</tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {teachers.map((teach) => {
-            const es = schedule.filter(e => e.teacherId === teach.id)
-            if (!es.length) return null
-            return (
-              <div key={teach.id} className="bg-white rounded shadow p-4 mb-6">
-                <h3 className="font-bold text-lg mb-3">{teach.name}</h3>
-                <div className="overflow-x-auto">
-                  <table className="border-collapse w-full text-sm">
-                    <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
-                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
-                      {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
-                      return <td key={dy} className="border p-1 min-w-[140px] align-top">
-                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
-                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'}`}>
-                            <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                            <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
-                          </div>))}
-                      </td>})}
-                    </tr>))}</tbody>
-                  </table>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {teachers.map((teach) => {
+              const es = schedule.filter(e => e.teacherId === teach.id)
+              if (!es.length) return null
+              return (
+                <div key={teach.id} className="bg-white rounded shadow p-4 mb-6">
+                  <h3 className="font-bold text-lg mb-3">{teach.name}</h3>
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse w-full text-sm">
+                      <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
+                      <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                        {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
+                        const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
+                        return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
+                          {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
+                            <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
+                              <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                              <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
+                            </div>))}
+                        </td>})}
+                      </tr>))}</tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      ))}
-      ) : (
+              )
+            })}
+          </div>
+        )
+      )}
+
+      {viewMode === 'room' && schedule.length > 0 && (
         <div className="space-y-6">
           {rooms.map((rm) => {
             const es = schedule.filter(e => e.roomId === rm.id)
@@ -211,17 +255,22 @@ export function ScheduleView() {
                     <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
                     <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
                       {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
-                      return <td key={dy} className="border p-1 min-w-[140px] align-top">
-                        {es2.length === 0 ? <div>-</div> : es2.map((ent) => (
-                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100' : 'bg-blue-50'}`}>
+                      const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
+                      return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
+                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
+                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
                             <div className="font-semibold">{getCourseName(ent.courseId)}</div>
                             <div className="text-gray-600">{getClassName(ent.classId)} | {getTeacherName(ent.teacherId)}</div>
                           </div>))}
                       </td>})}
                     </tr>))}</tbody>
-                  </table></div></div>
-            )})}
+                  </table>
+                </div>
+              </div>
+            )
+          })}
         </div>
+      )}
       {classes.length === 0 && <p className="text-gray-500 mt-8">Add classes, teachers, rooms in Manage first.</p>}
       {cellEdit && <CellModal classId={cellEdit.classId} day={cellEdit.day} period={cellEdit.period} onCancel={() => setCellEdit(null)} />}
     </div>

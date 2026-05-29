@@ -24,7 +24,13 @@ function isSlotFree(
   day: number,
   period: number
 ): boolean {
-  return !schedule.some((e) => e.classId === classId && e.dayOfWeek === day && e.periodIndex === period)
+  // v3+: allow multiple parallel courses for the same class in the same slot (walking/choice courses).
+  // Conflicts are enforced by teacher/room constraints instead.
+  void schedule
+  void classId
+  void day
+  void period
+  return true
 }
 
 function isTeacherFree(
@@ -114,6 +120,8 @@ export function findConflicts(schedule: ScheduleEntry[]): {
 } {
   const teacherConflicts: [ScheduleEntry, ScheduleEntry][] = []
   const roomConflicts: [ScheduleEntry, ScheduleEntry][] = []
+  // Class overlaps can be intentional (parallel walking courses), so we don't treat
+  // them as conflicts in v3.x. Keep the field for UI compatibility.
   const classConflicts: [ScheduleEntry, ScheduleEntry][] = []
 
   for (let i = 0; i < schedule.length; i++) {
@@ -122,7 +130,7 @@ export function findConflicts(schedule: ScheduleEntry[]): {
       if (a.dayOfWeek !== b.dayOfWeek || a.periodIndex !== b.periodIndex) continue
       if (a.teacherId === b.teacherId) teacherConflicts.push([a, b])
       if (a.roomId === b.roomId) roomConflicts.push([a, b])
-      if (a.classId === b.classId && a.courseId !== b.courseId) classConflicts.push([a, b])
+      // intentionally not flagging classId overlaps
     }
   }
   return { teacherConflicts, roomConflicts, classConflicts }
