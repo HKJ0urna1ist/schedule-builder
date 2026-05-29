@@ -6,6 +6,7 @@ import { CourseManager } from './components/CourseManager'
 import { ScheduleView } from './components/ScheduleView'
 import { TimeProfileManager } from './components/TimeProfileManager'
 import { ExamManager } from './components/ExamManager'
+import { OverrideManager } from './components/OverrideManager'
 
 function App() {
   const currentPage = useStore(s => s.currentPage)
@@ -85,6 +86,7 @@ function App() {
           <button className={`px-3 py-1 rounded text-sm ${currentPage === 'manage' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('manage')}>Manage</button>
           <button className={`px-3 py-1 rounded text-sm ${currentPage === 'time' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('time')}>Time</button>
           <button className={`px-3 py-1 rounded text-sm ${currentPage === 'exams' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('exams')}>Exams</button>
+          <button className={`px-3 py-1 rounded text-sm ${currentPage === 'overrides' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('overrides')}>Overrides</button>
         </div>
       </nav>
       <main className="max-w-6xl mx-auto">
@@ -99,6 +101,7 @@ function App() {
         )}
         {currentPage === 'time' && <TimeProfileManager />}
         {currentPage === 'exams' && <ExamManager />}
+        {currentPage === 'overrides' && <OverrideManager />}
       </main>
     </div>
   )

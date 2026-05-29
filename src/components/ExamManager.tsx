@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore, genId } from '../store'
 import type { ExamRoomAssignment, ExamSession } from '../types'
 import { findExamConflicts } from '../algorithm/examConflicts'
+import { findExamVsTimetableConflicts } from '../algorithm/timetableConflicts'
 
 function todayISO() {
   const d = new Date()
@@ -19,6 +20,15 @@ export function ExamManager() {
 
   const sessions = useStore(s => s.examSessions)
   const assigns = useStore(s => s.examAssignments)
+
+  const overrides = useStore(s => s.overrides)
+  const schedule = useStore(s => s.schedule)
+  const timeProfiles = useStore(s => s.timeProfiles)
+  const cycles = useStore(s => s.cycles)
+  const activeCycleId = useStore(s => s.activeCycleId)
+
+  const activeCycle = cycles.find(c => c.id === activeCycleId) || cycles[0]
+  const activeTimeProfile = timeProfiles.find(tp => tp.id === activeCycle?.timeProfileId) || timeProfiles[0]
 
   const addSession = useStore(s => s.addExamSession)
   const updateSession = useStore(s => s.updateExamSession)
@@ -51,11 +61,22 @@ export function ExamManager() {
   const courseById = useMemo(() => new Map(courses.map(c => [c.id, c])), [courses])
 
   const conflicts = useMemo(() => findExamConflicts(sessions, assigns), [sessions, assigns])
+  const crossConflicts = useMemo(() => {
+    if (!activeTimeProfile) return []
+    return findExamVsTimetableConflicts({
+      timeProfile: activeTimeProfile,
+      overrides,
+      baseSchedule: schedule,
+      examSessions: sessions,
+      examAssignments: assigns,
+    })
+  }, [activeTimeProfile, overrides, schedule, sessions, assigns])
   const conflictAssignIds = useMemo(() => {
     const s = new Set<string>()
     for (const c of conflicts) { s.add(c.aAssignmentId); s.add(c.bAssignmentId) }
+    for (const c of crossConflicts) { s.add(c.assignmentId) }
     return s
-  }, [conflicts])
+  }, [conflicts, crossConflicts])
 
   const shownAssigns = useMemo(() => {
     if (!filterDate) return assigns
@@ -155,13 +176,13 @@ export function ExamManager() {
         </div>
       </div>
 
-      {conflicts.length > 0 ? (
+      {(conflicts.length + crossConflicts.length) > 0 ? (
         <div className="mt-3 border border-red-300 bg-red-50 rounded p-2 text-sm text-red-700">
-          <div className="font-semibold">Conflicts: {conflicts.length}</div>
-          <div className="text-xs">(teacher/room overlap at the same time)</div>
+          <div className="font-semibold">Conflicts: {conflicts.length + crossConflicts.length}</div>
+          <div className="text-xs">(exam internal + exam vs timetable teacher/room overlap)</div>
         </div>
       ) : (
-        <div className="mt-3 text-sm text-green-700">No exam conflicts</div>
+        <div className="mt-3 text-sm text-green-700">No conflicts</div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">

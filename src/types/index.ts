@@ -67,6 +67,7 @@ export interface TimetableOverride {
   name: string
   startDate: string // YYYY-MM-DD
   endDate: string // YYYY-MM-DD
+  // Entries for the override date range. Uses the same structure as the base timetable.
   schedule: ScheduleEntry[]
 }
 
