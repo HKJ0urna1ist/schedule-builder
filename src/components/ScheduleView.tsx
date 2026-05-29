@@ -11,7 +11,7 @@ function CellModal({ classId, day, period, onCancel }: { classId: string; day: n
   const [gl, setGl] = useState('')
   const save = () => {
     if (!cId || !tId || !rId) return
-    addManualEntry({ id: genId(), classId, courseId: cId, teacherId: tId, roomId: rId, groupLabel: gl.trim() || '-', dayOfWeek: day, periodIndex: period, locked: true })
+    addManualEntry({ id: genId(), classId, courseId: cId, teacherId: tId, roomId: rId, groupLabel: gl.trim(), dayOfWeek: day, periodIndex: period, locked: true })
     onCancel()
   }
   const cc = courses.filter(c => c.classId === classId)
@@ -31,7 +31,7 @@ function CellModal({ classId, day, period, onCancel }: { classId: string; day: n
           <option value="">Room</option>
           {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
-        <input className="border rounded px-2 py-1 w-full mb-2" placeholder="Group label" value={gl} onChange={e => setGl(e.target.value)} />
+        <input className="border rounded px-2 py-1 w-full mb-2" placeholder="Group label (optional)" value={gl} onChange={e => setGl(e.target.value)} />
         <div className="flex gap-2">
           <button className="bg-blue-500 text-white px-4 py-1 rounded flex-1" onClick={save}>Add</button>
           <button className="bg-gray-300 px-4 py-1 rounded flex-1" onClick={onCancel}>Cancel</button>
@@ -159,7 +159,7 @@ export function ScheduleView() {
                                   title={conflictEntryIds.has(ent.id) ? 'Conflict detected' : undefined}
                                 >
                                   <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                                  <div className="text-gray-600 truncate">{ent.groupLabel ? ent.groupLabel + ' @ ' : ''}{getRoomName(ent.roomId)}</div>
+                                  <div className="text-gray-600 truncate">{ent.groupLabel ? ent.groupLabel + ' @ ' : '@ '}{getRoomName(ent.roomId)}</div>
                                   <div className="text-gray-500">{getTeacherName(ent.teacherId)}</div>
                                 </div>
                               ))}

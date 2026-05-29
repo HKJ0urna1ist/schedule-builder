@@ -14,7 +14,8 @@ export function CourseManager() {
   const [gt, setGt] = useState('')
   const [gr, setGr] = useState('')
   const addGroup = () => {
-    if (!gl.trim() || !gt || !gr) return
+    if (!gt || !gr) return
+    // label is optional: empty means whole-class / no subgroup label
     setGroups([...groups, { label: gl.trim(), teacherId: gt, roomId: gr }])
     setGl(''); setGt(''); setGr('')
   }
@@ -52,7 +53,7 @@ export function CourseManager() {
       <div className="border rounded p-3 mb-4 bg-gray-50">
         <p className="text-sm font-semebold mb-2">Add group (parallel sessions at same time)</p>
         <div className="flex gap-2 flex-wrap items-end">
-          <input className="border rounded px-2 py-1 w-24" placeholder="Group label" value={gl} onChange={(e) => setGl(e.target.value)} />
+          <input className="border rounded px-2 py-1 w-32" placeholder="Group label (optional)" value={gl} onChange={(e) => setGl(e.target.value)} />
           <select className="border rounded px-2 py-1" value={gt} onChange={(e) => setGt(e.target.value)}>
             <option value="">Teacher</option>
             {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -67,7 +68,7 @@ export function CourseManager() {
           <div className="flex gap-2 mt-2 flex-wrap">
             {groups.map((g, i) => (
               <span key={i} className="bg-white border rounded px-2 py-1 text-sm">
-                {g.label}(@{rn(g.roomId)}) - {tn(g.teacherId)}
+                {(g.label || 'All')}(@{rn(g.roomId)}) - {tn(g.teacherId)}
                 <button className="text-red-500 ml-1" onClick={() => setGroups(groups.filter((_, id) => id !== i))}>x</button>
               </span>
             ))}
@@ -90,7 +91,7 @@ export function CourseManager() {
                 <td className="border p-2">{co.name}</td>
                 <td className="border p-2"><span className={co.type === '走班' ? 'text-orange-500 font-semibold' : ''}>{co.type}</span></td>
                 <td className="border p-2">{cn(co.classId)}</td>
-                <td className="border p-2 text-sm">{co.groups.map((g) => `${g.label}(${tn(g.teacherId)})`).join(', ')}</td>
+                <td className="border p-2 text-sm">{co.groups.map((g) => `${g.label || 'All'}(${tn(g.teacherId)})`).join(', ')}</td>
                 <td className="border p-2">{co.lessonsPerWeek}</td>
                 <td className="border p-2 space-x-1">
                   <button className="text-blue-500 text-sm" onClick={() => startEdit(co)}>Edit</button>

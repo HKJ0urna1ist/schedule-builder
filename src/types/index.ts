@@ -36,6 +36,7 @@ export interface ScheduleEntry {
   courseId: string
   teacherId: string
   roomId: string
+  // Optional; empty means whole class / no subgroup label.
   groupLabel: string
   dayOfWeek: number
   periodIndex: number
