@@ -4,6 +4,7 @@ import { TeacherManager } from './components/TeacherManager'
 import { RoomManager } from './components/RoomManager'
 import { CourseManager } from './components/CourseManager'
 import { ScheduleView } from './components/ScheduleView'
+import { TimeProfileManager } from './components/TimeProfileManager'
 
 function App() {
   const currentPage = useStore(s => s.currentPage)
@@ -81,6 +82,7 @@ function App() {
         <div className="flex gap-1">
           <button className={`px-3 py-1 rounded text-sm ${currentPage === 'schedule' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('schedule')}>Schedule</button>
           <button className={`px-3 py-1 rounded text-sm ${currentPage === 'manage' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('manage')}>Manage</button>
+          <button className={`px-3 py-1 rounded text-sm ${currentPage === 'time' ? 'bg-blue-600' : 'hover:bg-gray-700'}`} onClick={() => setCurrentPage('time')}>Time</button>
         </div>
       </nav>
       <main className="max-w-6xl mx-auto">
@@ -93,6 +95,7 @@ function App() {
             <CourseManager />
           </div>
         )}
+        {currentPage === 'time' && <TimeProfileManager />}
       </main>
     </div>
   )
