@@ -87,7 +87,8 @@ export const useStore = create<AppState>((set, get) => {
     toggleLock: (entryId) => { set(s => ({ schedule: s.schedule.map(e => e.id === entryId ? { ...e, locked: !e.locked } : e) })); save() },
     clearSchedule: () => { set({ schedule: [] }); save() },
     moveEntry: (entryId, to) => {
-      set(s => ({ schedule: s.schedule.map(e => e.id === entryId ? { ...e, classId: to.classId, dayOfWeek: to.day, periodIndex: to.period, locked: true } : e) }))
+      // Moving an entry should not implicitly lock it.
+      set(s => ({ schedule: s.schedule.map(e => e.id === entryId ? { ...e, classId: to.classId, dayOfWeek: to.day, periodIndex: to.period } : e) }))
       save()
     },
     addManualEntry: (entry) => { set(s => ({ schedule: [...s.schedule, entry] })); save() },

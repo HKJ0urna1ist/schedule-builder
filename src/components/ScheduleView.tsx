@@ -81,6 +81,10 @@ export function ScheduleView() {
   }, [conflicts])
   const targetClasses = viewTargetId ? classes.filter(c => c.id === viewTargetId) : classes
 
+  const handleDelete = useCallback((id: string) => {
+    if (confirm('Remove this entry?')) removeEntry(id)
+  }, [removeEntry])
+
   const handleDragStart = (e: React.DragEvent, id: string) => { setDragId(id); e.dataTransfer.effectAllowed = 'move' }
   const handleDrop = (to: { classId: string; day: number; period: number }) => {
     if (!dragId) return
@@ -149,18 +153,34 @@ export function ScheduleView() {
                               {entries.map((ent) => (
                                 <div
                                   key={ent.id}
-                                  className={`rounded p-1 text-xs cursor-grab active:cursor-grabbing flex-1 min-w-0 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50 hover:bg-blue-100'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}
-                                  draggable={!ent.locked}
-                                  onDragStart={(e) => handleDragStart(e, ent.id)}
-                                  onClick={(ev) => {
-                                    if (ev.shiftKey) toggleLock(ent.id)
-                                    if (ev.altKey && confirm('Remove?')) removeEntry(ent.id)
-                                  }}
+                                  className={`rounded p-1 text-xs flex-1 min-w-0 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50 hover:bg-blue-100'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}
                                   title={conflictEntryIds.has(ent.id) ? 'Conflict detected' : undefined}
                                 >
-                                  <div className="font-semibold">{getCourseName(ent.courseId)}</div>
+                                  <div
+                                    className={`font-semibold ${ent.locked ? '' : 'cursor-grab active:cursor-grabbing'}`}
+                                    draggable={!ent.locked}
+                                    onDragStart={(e) => handleDragStart(e, ent.id)}
+                                  >
+                                    {getCourseName(ent.courseId)}
+                                  </div>
                                   <div className="text-gray-600 truncate">{ent.groupLabel ? ent.groupLabel + ' @ ' : '@ '}{getRoomName(ent.roomId)}</div>
                                   <div className="text-gray-500">{getTeacherName(ent.teacherId)}</div>
+                                  <div className="flex gap-1 mt-1">
+                                    <button
+                                      className={`px-1 rounded border text-[10px] ${ent.locked ? 'border-yellow-500 text-yellow-700 bg-white' : 'border-gray-300 text-gray-600 bg-white hover:bg-gray-50'}`}
+                                      onClick={() => toggleLock(ent.id)}
+                                      title={ent.locked ? 'Unlock (allow regenerate/move)' : 'Lock (keep fixed on regenerate)'}
+                                    >
+                                      {ent.locked ? 'Unlock' : 'Lock'}
+                                    </button>
+                                    <button
+                                      className="px-1 rounded border border-red-300 text-red-600 bg-white hover:bg-red-50 text-[10px]"
+                                      onClick={() => handleDelete(ent.id)}
+                                      title="Delete"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                               <button
@@ -198,11 +218,16 @@ export function ScheduleView() {
                         {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
                         const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
                         return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
-                          {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
-                            <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
-                              <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                              <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
-                            </div>))}
+                          {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : (
+                            <div className="flex gap-1 items-stretch">
+                              {es2.map((ent) => (
+                                <div key={ent.id} className={`rounded p-1 text-xs flex-1 min-w-0 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
+                                  <div className="font-semibold truncate">{getCourseName(ent.courseId)}</div>
+                                  <div className="text-gray-600 truncate">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>})}
                       </tr>))}</tbody>
                     </table>
@@ -226,11 +251,16 @@ export function ScheduleView() {
                         {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
                         const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
                         return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
-                          {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
-                            <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
-                              <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                              <div className="text-gray-600">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
-                            </div>))}
+                          {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : (
+                            <div className="flex gap-1 items-stretch">
+                              {es2.map((ent) => (
+                                <div key={ent.id} className={`rounded p-1 text-xs flex-1 min-w-0 ${ent.locked ? 'bg-yellow-100 border border-yellow-400' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
+                                  <div className="font-semibold truncate">{getCourseName(ent.courseId)}</div>
+                                  <div className="text-gray-600 truncate">{getClassName(ent.classId)} | @{getRoomName(ent.roomId)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>})}
                       </tr>))}</tbody>
                     </table>
@@ -257,11 +287,16 @@ export function ScheduleView() {
                       {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
                       const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
                       return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
-                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : es2.map((ent) => (
-                          <div key={ent.id} className={`rounded p-1 text-xs mb-1 ${ent.locked ? 'bg-yellow-100' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
-                            <div className="font-semibold">{getCourseName(ent.courseId)}</div>
-                            <div className="text-gray-600">{getClassName(ent.classId)} | {getTeacherName(ent.teacherId)}</div>
-                          </div>))}
+                        {es2.length === 0 ? <div className="text-gray-300 text-xs text-center">-</div> : (
+                          <div className="flex gap-1 items-stretch">
+                            {es2.map((ent) => (
+                              <div key={ent.id} className={`rounded p-1 text-xs flex-1 min-w-0 ${ent.locked ? 'bg-yellow-100' : 'bg-blue-50'} ${conflictEntryIds.has(ent.id) ? 'ring-2 ring-red-500' : ''}`}>
+                                <div className="font-semibold truncate">{getCourseName(ent.courseId)}</div>
+                                <div className="text-gray-600 truncate">{getClassName(ent.classId)} | {getTeacherName(ent.teacherId)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>})}
                     </tr>))}</tbody>
                   </table>
