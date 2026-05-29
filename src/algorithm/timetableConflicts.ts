@@ -69,6 +69,9 @@ export function findExamVsTimetableConflicts(opts: {
       if (!pr) continue
       if (!rangesOverlap(exStart, exEnd, pr.startMin, pr.endMin)) continue
 
+      // If the class is taking the exam during this time, their timetable is suspended.
+      if (asg.classIds?.includes(ent.classId)) continue
+
       if (asg.roomId && ent.roomId && asg.roomId === ent.roomId) {
         conflicts.push({
           type: 'room',

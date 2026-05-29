@@ -3,6 +3,7 @@ import { useStore, genId } from '../store'
 import type { ExamRoomAssignment, ExamSession } from '../types'
 import { findExamConflicts } from '../algorithm/examConflicts'
 import { findExamVsTimetableConflicts } from '../algorithm/timetableConflicts'
+import { ExamGridView } from './ExamGridView'
 
 function todayISO() {
   const d = new Date()
@@ -38,6 +39,7 @@ export function ExamManager() {
   const deleteAssign = useStore(s => s.deleteExamAssignment)
 
   const [filterDate, setFilterDate] = useState<string>('')
+  const [mode, setMode] = useState<'list' | 'grid'>('grid')
   const [editSessionId, setEditSessionId] = useState<string | null>(null)
   const [examName, setExamName] = useState('')
   const [courseId, setCourseId] = useState('')
@@ -165,11 +167,28 @@ export function ExamManager() {
 
   const sessionOptions = useMemo(() => [...sessions].sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)), [sessions])
 
+  if (mode === 'grid') {
+    return (
+      <div>
+        <div className="p-4 max-w-6xl">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <h2 className="text-xl font-bold">Exams / Invigilation</h2>
+            <div className="flex items-center gap-2">
+              <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={() => setMode('list')}>Edit List</button>
+            </div>
+          </div>
+        </div>
+        <ExamGridView />
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 max-w-6xl">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-xl font-bold">Exams / Invigilation</h2>
         <div className="flex items-center gap-2">
+          <button className="bg-gray-800 text-white px-3 py-1 rounded text-sm" onClick={() => setMode('grid')}>View Grid</button>
           <span className="text-sm text-gray-600">Filter date:</span>
           <input className="border rounded px-2 py-1 text-sm" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
           {filterDate && <button className="text-sm text-gray-600" onClick={() => setFilterDate('')}>Clear</button>}

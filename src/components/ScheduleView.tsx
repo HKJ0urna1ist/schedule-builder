@@ -42,6 +42,9 @@ function CellModal({ classId, day, period, onCancel }: { classId: string; day: n
 }
 
 export function ScheduleView() {
+  const cycles = useStore(s => s.cycles)
+  const activeCycleId = useStore(s => s.activeCycleId)
+  const timeProfiles = useStore(s => s.timeProfiles)
   const classes = useStore(s => s.classes)
   const teachers = useStore(s => s.teachers)
   const rooms = useStore(s => s.rooms)
@@ -58,6 +61,15 @@ export function ScheduleView() {
   const removeEntry = useStore(s => s.removeEntry)
   const [cellEdit, setCellEdit] = useState<{ classId: string; day: number; period: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+
+  const activeCycle = useMemo(() => cycles.find(c => c.id === activeCycleId) || cycles[0], [cycles, activeCycleId])
+  const activeTimeProfile = useMemo(() => timeProfiles.find(tp => tp.id === activeCycle?.timeProfileId) || timeProfiles[0], [timeProfiles, activeCycle])
+  const periodTimeLabel = useMemo(() => {
+    const m = new Map<number, string>()
+    if (!activeTimeProfile) return m
+    for (const pr of activeTimeProfile.periods) m.set(pr.periodIndex, `${pr.start}-${pr.end}`)
+    return m
+  }, [activeTimeProfile])
 
   const getCourseName = useMemo(() => (id: string) => courses.find(c => c.id === id)?.name ?? '-', [courses])
   const getTeacherName = useMemo(() => (id: string) => teachers.find(t => t.id === id)?.name ?? '-', [teachers])
@@ -135,7 +147,10 @@ export function ScheduleView() {
               <tbody>
                 {PERIODS.map((p) => (
                   <tr key={p}>
-                    <td className="border p-2 text-center text-gray-400">{p}</td>
+                    <td className="border p-2 text-center text-gray-400 whitespace-nowrap">
+                      <div className="font-semibold text-gray-600">P{p}</div>
+                      <div className="text-[10px] text-gray-400">{periodTimeLabel.get(p) || ''}</div>
+                    </td>
                     {DAYS.map((_, dy) => {
                       const entries = schedule.filter(e => e.classId === cl.id && e.dayOfWeek === dy && e.periodIndex === p)
                       const cellHasConflict = entries.some(e => conflictEntryIds.has(e.id))
@@ -214,7 +229,7 @@ export function ScheduleView() {
                   <div className="overflow-x-auto">
                     <table className="border-collapse w-full text-sm">
                       <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
-                      <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                      <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400 whitespace-nowrap"><div className="font-semibold text-gray-600">P{p}</div><div className="text-[10px] text-gray-400">{periodTimeLabel.get(p) || ''}</div></td>
                         {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
                         const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
                         return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
@@ -247,7 +262,7 @@ export function ScheduleView() {
                   <div className="overflow-x-auto">
                     <table className="border-collapse w-full text-sm">
                       <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
-                      <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                      <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400 whitespace-nowrap"><div className="font-semibold text-gray-600">P{p}</div><div className="text-[10px] text-gray-400">{periodTimeLabel.get(p) || ''}</div></td>
                         {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
                         const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
                         return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
@@ -283,7 +298,7 @@ export function ScheduleView() {
                 <div className="overflow-x-auto">
                   <table className="border-collapse w-full text-sm">
                     <thead><tr className="bg-gray-100"><th className="border p-2 w-12">Prd</th>{DAYS.map((d,i) => <th key={i} className="border p-2">{d}</th>)}</tr></thead>
-                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400">{p}</td>
+                    <tbody>{PERIODS.map(p => (<tr key={p}><td className="border p-2 text-center text-gray-400 whitespace-nowrap"><div className="font-semibold text-gray-600">P{p}</div><div className="text-[10px] text-gray-400">{periodTimeLabel.get(p) || ''}</div></td>
                       {DAYS.map((_, dy) => { const es2 = es.filter(e => e.dayOfWeek === dy && e.periodIndex === p)
                       const cellHasConflict = es2.some(e => conflictEntryIds.has(e.id))
                       return <td key={dy} className={`border p-1 min-w-[140px] align-top ${cellHasConflict ? 'bg-red-50' : ''}`}>
