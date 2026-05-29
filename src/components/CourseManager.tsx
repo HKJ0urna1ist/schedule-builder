@@ -8,6 +8,7 @@ export function CourseManager() {
   const [type, setType] = useState<CourseType>('必修')
   const [classId, setClassId] = useState('')
   const [lpw, setLpw] = useState(3)
+  const [enroll, setEnroll] = useState<string>('')
   const [groups, setGroups] = useState<CourseGroup[]>([])
   const [editId, setEditId] = useState<string | null>(null)
   const [gl, setGl] = useState('')
@@ -21,12 +22,22 @@ export function CourseManager() {
   }
   const handleAdd = () => {
     if (!name.trim() || !classId || groups.length === 0) return
-    if (editId) { updateCourse({ id: editId, name: name.trim(), type, classId, lessonsPerWeek: lpw, groups }); setEditId(null) }
-    else { addCourse({ id: genId(), name: name.trim(), type, classId, lessonsPerWeek: lpw, groups }) }
+    const enrollment = enroll.trim() ? Number(enroll) : undefined
+    if (enroll.trim() && (!Number.isFinite(enrollment) || enrollment! < 0)) return
+
+    if (editId) { updateCourse({ id: editId, name: name.trim(), type, classId, lessonsPerWeek: lpw, enrollment, groups }); setEditId(null) }
+    else { addCourse({ id: genId(), name: name.trim(), type, classId, lessonsPerWeek: lpw, enrollment, groups }) }
     setName(''); setClassId(''); setGroups([]); setLpw(3)
+    setEnroll('')
   }
   const startEdit = (co: typeof courses[number]) => {
-    setEditId(co.id); setName(co.name); setType(co.type); setClassId(co.classId); setLpw(co.lessonsPerWeek); setGroups([...co.groups])
+    setEditId(co.id)
+    setName(co.name)
+    setType(co.type)
+    setClassId(co.classId)
+    setLpw(co.lessonsPerWeek)
+    setEnroll(typeof co.enrollment === 'number' ? String(co.enrollment) : '')
+    setGroups([...co.groups])
   }
   const tn = (id: string) => teachers.find(t => t.id === id)?.name ?? '-'
   const rn = (id: string) => rooms.find(r => r.id === id)?.name ?? '-'
@@ -47,8 +58,12 @@ export function CourseManager() {
           <span className="text-sm text-gray-600">Per week:</span>
           <input className="border rounded px-2 py-1 w-16" type="number" min={1} max={20} value={lpw} onChange={(e) => setLpw(Number(e.target.value))} />
         </div>
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-gray-600">Students:</span>
+          <input className="border rounded px-2 py-1 w-20" placeholder="e.g. 18" inputMode="numeric" value={enroll} onChange={(e) => setEnroll(e.target.value)} />
+        </div>
         <button className="bg-blue-500 text-white px-4 py-1 rounded" onClick={handleAdd}>{editId ? 'Update' : 'Add'}</button>
-        {editId && <button className="text-gray-500 text-sm" onClick={() => { setEditId(null); setName(''); setClassId(''); setGroups([]); setLpw(3) }}>Cancel</button>}
+        {editId && <button className="text-gray-500 text-sm" onClick={() => { setEditId(null); setName(''); setClassId(''); setGroups([]); setLpw(3); setEnroll('') }}>Cancel</button>}
       </div>
       <div className="border rounded p-3 mb-4 bg-gray-50">
         <p className="text-sm font-semebold mb-2">Add group (parallel sessions at same time)</p>
@@ -83,6 +98,7 @@ export function CourseManager() {
             <th className="border p-2 text-left">Class</th>
             <th className="border p-2 text-left">Groups</th>
             <th className="border p-2 text-left">Per Week</th>
+            <th className="border p-2 text-left">Students</th>
             <th className="border p-2 text-left">Actions</th>
           </tr></thead>
           <tbody>
@@ -93,6 +109,7 @@ export function CourseManager() {
                 <td className="border p-2">{cn(co.classId)}</td>
                 <td className="border p-2 text-sm">{co.groups.map((g) => `${g.label || 'All'}(${tn(g.teacherId)})`).join(', ')}</td>
                 <td className="border p-2">{co.lessonsPerWeek}</td>
+                <td className="border p-2">{typeof co.enrollment === 'number' ? co.enrollment : <span className="text-gray-400 text-sm">-</span>}</td>
                 <td className="border p-2 space-x-1">
                   <button className="text-blue-500 text-sm" onClick={() => startEdit(co)}>Edit</button>
                   <button className="text-red-500 text-sm" onClick={() => { if (confirm('Delete?')) removeCourse(co.id) }}>Del</button>

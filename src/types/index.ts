@@ -11,6 +11,7 @@ export interface Teacher {
 export interface Room {
   id: string
   name: string
+  capacity?: number
 }
 
 export interface CourseGroup {
@@ -27,6 +28,8 @@ export interface Course {
   type: CourseType
   classId: string
   lessonsPerWeek: number
+  // Number of students taking this course (used as default exam candidate count).
+  enrollment?: number
   groups: CourseGroup[]
 }
 
